@@ -87,7 +87,7 @@ void printBOMToFile(int isBigEndian, FILE *outputFile)
 /********************************
 ** This will print a long (32 bits) to file
 ** Input:
-** 	One integer (16 bits)
+** 	One long (32 bits)
 ** 	File to write to
 ** Output:
 ** 	void
@@ -133,27 +133,32 @@ unsigned int fullInteger(unsigned int firstChar, unsigned int secondChar, int is
 }
 
 /*****************************************
-** This will determine if a UTF 16 int is
+** This will determine if a 32 bit long is
 ** a noncharecter
 ** Input:
-** 	An integer
-** 	The plane its in
+** 	A long
 ** Output:
 ** 	void
 ** Effect:
 ** 	Error if not a charecter
 */
-void isIntegerOk(unsigned int possibleInt)
+void isLongOk(unsigned long possibleLong)
 {
-	if((possibleInt == 0xFFFE) | (possibleInt == 0xFFFF))
+	unsigned int intPart = (unsigned long) possibleLong; 
+	//check all planes, really we need only look at the int part
+	if( (intPart == 0xFFFE) | (intPart == 0xFFFF))
 	{
-		printf("Found an invalid charecter");
+		printf("Error: Non-charecter found");
 		exit(-1);
 	}
-	if(((possibleInt >= 0xD800u) & (possibleInt <= 0xDFFFu)) & ((possibleInt >= 0xFDD0u) & (possibleInt <= 0xFDDFu)))
+	//If in the BMP check invalid region
+	if(((unsigned long) intPart) == possibleLong)
 	{
-		printf("Found an invalid charecter");
-		exit(-1);
+		if( (intPart >= 0xFDD0u) & (intPart <= 0xFDEF))
+		{
+			printf("Error: Non-charecter found");
+			exit(-1);
+		}
 	}
 }
 
@@ -203,13 +208,12 @@ int main(int argc, char *argv[])
 		unsigned int secondChar = getc(inputFile);
 		errorIfEOLChar(secondChar);
 		unsigned int firstInt = fullInteger(firstChar, secondChar, isBigEndian);
-		isIntegerOk(firstInt);
-
 		//We should check if we are done getting a utf element
 		if( (firstInt < 0xD800) | (firstInt > 0xDFFF))
 		{
 			unsigned long fullChar = (((unsigned long) secondChar) << 8) + (unsigned long)firstChar;
 			//check if this is a valid charecter
+			isLongOk(fullChar);
 			//This is BMP charecter, we need to write as utf 8
 			writeLongToFile(isBigEndian, fullChar, outputFile);
 		} //If this if didn't go then we have determined that this is not in the BMP
@@ -221,7 +225,11 @@ int main(int argc, char *argv[])
 			unsigned int fourthChar = getc(inputFile);
 			errorIfEOLChar(fourthChar);
 			unsigned int secondInt = fullInteger(thirdChar, fourthChar, isBigEndian);
-			isIntegerOk(secondInt);
+			if( (secondInt > 0xDC00u) | (secondInt < 0xDFFu))
+			{
+				printf("Error: The input file had an invalid trail surrogate");
+				exit(-1);
+			}
 			//Next transform
 			unsigned int tempFirst = firstInt - 0xD800u;
 			unsigned int tempSecond = secondInt - 0xDC00u;
@@ -231,7 +239,7 @@ int main(int argc, char *argv[])
 						+ (((unsigned long) firstTenBitsOfS) << 10);
 			unsigned long fullChar = total + 0x10000u;
 			//We now have the real value, we need to check validity and write it to the output file
-			//TODO: Add check
+			isLongOk(fullChar);
 			writeLongToFile(isBigEndian, fullChar, outputFile);
 		}
 		firstChar = getc(inputFile);
