@@ -83,11 +83,11 @@ void print16BitCharecterToFile(FILE *outputFile, unsigned int toPrint)
 	if(_ISBIGENDIAN)
 	{
 		putc(toPrint >> 8, outputFile);
-		putc(toPrint & 0xFFu, outputFile);
+		putc((toPrint << 8) >> 8, outputFile);
 	}
 	else
 	{
-		putc(toPrint & 0xFFu, outputFile);
+		putc((toPrint << 8) >> 8, outputFile);
 		putc(toPrint >> 8, outputFile);
 	}
 }
@@ -103,8 +103,8 @@ void print16BitCharecterToFile(FILE *outputFile, unsigned int toPrint)
 */
 void print32BitCharecterToFile(FILE *outputFile, unsigned long toPrint)
 {
-	print16BitCharecterToFile(outputFile, (unsigned int) (toPrint >> 16));
-	print16BitCharecterToFile(outputFile, (unsigned int) (toPrint & 0xFFFF));
+	print16BitCharecterToFile(outputFile, toPrint >> 16);
+	print16BitCharecterToFile(outputFile, (toPrint << 16) >> 16);
 }
 
 /*********************************************
@@ -118,71 +118,72 @@ void print32BitCharecterToFile(FILE *outputFile, unsigned long toPrint)
 */
 unsigned long getNextLong(FILE *inputFile, unsigned int firstChar)
 {
-  unsigned int secondChar = getc(inputFile);
-  errorIfEOF(secondChar);
-  unsigned int thirdChar = getc(inputFile);
-  errorIfEOF(thirdChar);
-  unsigned int fourthChar = getc(inputFile);
-  errorIfEOF(fourthChar);
-  if(_ISBIGENDIAN)
-    {
-      return ((((unsigned long)firstChar) << 24) +
-	      (((unsigned long)secondChar) << 16) +
-	      (((unsigned long)thirdChar) << 8) +
-	      ((unsigned long)fourthChar));
-    }
-  {
-    return (((unsigned long)firstChar) +
-	    (((unsigned long)secondChar) << 8) +
-	    (((unsigned long)thirdChar) << 16) +
-	    (((unsigned long)fourthChar) << 24));
-  }
+	unsigned int secondChar = getc(inputFile);
+	errorIfEOF(secondChar);
+	unsigned int thirdChar = getc(inputFile);
+	errorIfEOF(thirdChar);
+	unsigned int fourthChar = getc(inputFile);
+	errorIfEOF(fourthChar);
+	if(_ISBIGENDIAN)
+	{
+		return ((((unsigned long)firstChar)
+			 << 24) +
+		(((unsigned long)secondChar) << 16) +
+		(((unsigned long)thirdChar) << 8) +
+			((unsigned long)fourthChar));
+	}
+	{
+	  return (((unsigned long)firstChar) +
+		  (((unsigned long)secondChar) << 8) +
+		  (((unsigned long)thirdChar) << 16) +
+		  (((unsigned long)fourthChar) << 24));
+	}
 }
 
 
 /*********************************************
- ** This function will check if a long is a valid
- ** unicode charecter
- ** Input:
- **	The unsigned long
- ** Output:
- **	void
- ** Effect:
- ** 	Error if invalid
- */
+** This function will check if a long is a valid
+** unicode charecter
+** Input:
+**	The unsigned long
+** Output:
+**	void
+** Effect:
+** 	Error if invalid
+*/
 void checkIfValidWord(unsigned long word)
 {
-  if(word > 0x10FFFFu)
-    {
-      printf("Error: Found a word to large to be unicode");
-      exit(-1);
-    }
-  if(((word == 0xFFFEu) |( word == 0xFFFF)) |
-     ((word == 0x1FFFEu) | (word == 0x1FFFF)) |
-     ((word == 0x2FFFEu) | (word == 0x2FFFF)) |
-     ((word == 0x3FFFEu) | (word == 0x3FFFF)) |
-     ((word == 0x4FFFEu) | (word == 0x4FFFF)) |
-     ((word == 0x5FFFEu) | (word == 0x5FFFF)) |
-     ((word == 0x6FFFEu) | (word == 0x6FFFF)) |
-     ((word == 0x7FFFEu) | (word == 0x7FFFF)) |
-     ((word == 0x8FFFEu) | (word == 0x8FFFF)) |
-     ((word == 0x9FFFEu) | (word == 0x9FFFF)) |
-     ((word == 0xAFFFEu) | (word == 0xAFFFF)) |
-     ((word == 0xBFFFEu) | (word == 0xBFFFF)) |
-     ((word == 0xCFFFEu) | (word == 0xCFFFF)) |
-     ((word == 0xDFFFEu) | (word == 0xDFFFF)) |
-     ((word == 0xEFFFEu) | (word == 0xEFFFF)) |
-     ((word == 0xFFFFEu) | (word == 0xFFFFF)) |
-     ((word == 0x10FFEu) | (word == 0x10FFFF)))
-    {
-      printf("Error: Found a word ending in FFFE or FFFF");
-      exit(-1);
-    }
-  if((word >= 0xFDD0) & (word <= 0xFDDF))
-    {
-      printf("Error: Found a word between 0xFDD0 and 0xFDDF");
-      exit(-1);
-    }
+	if(word > 0x10FFFFu)
+	{
+		printf("Error: Found a word to large to be unicode");
+		exit(-1);
+	}
+	if((word == 0xFFEu | word == 0xFFFF) |
+		(word == 0x1FFEu | word == 0x1FFFF) |
+		(word == 0x2FFEu | word == 0x2FFFF) |
+		(word == 0x3FFEu | word == 0x3FFFF) |
+		(word == 0x4FFEu | word == 0x4FFFF) |
+		(word == 0x5FFEu | word == 0x5FFFF) |
+		(word == 0x6FFEu | word == 0x6FFFF) |
+		(word == 0x7FFEu | word == 0x7FFFF) |
+		(word == 0x8FFEu | word == 0x8FFFF) |
+		(word == 0x9FFEu | word == 0x9FFFF) |
+		(word == 0xAFFEu | word == 0xAFFFF) |
+		(word == 0xBFFEu | word == 0xBFFFF) |
+		(word == 0xCFFEu | word == 0xCFFFF) |
+		(word == 0xDFFEu | word == 0xDFFFF) |
+		(word == 0xEFFEu | word == 0xEFFFF) |
+		(word == 0xFFFEu | word == 0xFFFFF) |
+		(word == 0x10FFEu | word == 0x10FFFF))
+	{
+		printf("Error: Found a word ending in FFFE or FFFF");
+		exit(-1);
+	}
+	if((word >= 0xFDD0) & (word <= 0xFDDF))
+	{
+		printf("Error: Found a word between 0xFDD0 and 0xFDDF");
+		exit(-1);
+	}
 }
 
 /*********************************************
@@ -200,7 +201,7 @@ int checkIf16BitUTF16(unsigned long word)
 	}
 	else
 	{
-	  return 0;
+		return 2
 	}
 }
 
@@ -216,23 +217,11 @@ unsigned long transformWordToUnicode(unsigned long word)
 {
 	word -= 0x10000;
 	unsigned int firstChar = word >> 10;
-	unsigned int secondChar = word & 0x3FF;
+	unsigned int secondChar = (word << 22) >> 22;
 
 	firstChar += 0xD800u;
 	secondChar += 0xDC00u;
-	return ((unsigned long)secondChar) + (((unsigned long) firstChar) << 16);
-}
-
-/*********************************************
-** This function prints a BOM to the underlying file
-** Input:
-**	The unsigned long
-** Output:
-**      Void
-*/
-void printBOMToFile(FILE *outputFile)
-{
-  print16BitCharecterToFile(outputFile, 0xFEFFu);
+	return ((unsigned long)firstChar) + (((unsigned long) secondChar) << 16);
 }
 
 int main(int argc, char *argv[])
@@ -245,7 +234,7 @@ int main(int argc, char *argv[])
         }
 
         //Correct number of files, where they different?
-        if(!strcmp(argv[1],argv[2]))
+        if(strcmp(argv[1],argv[2]))
         {
                 printf("The input and output files cannot be the same");
                 exit(-1);
@@ -269,8 +258,8 @@ int main(int argc, char *argv[])
         }
 
         //Test the BOM and if correct write the BOM to the output file
-        checkBigEndian(inputFile);
-        printBOMToFile(outputFile);
+        int isBigEndian = checkBigEndian(inputFile);
+        printBOMToFile(isBigEndian, outputFile);
 
         //We process the rest in a loop
         unsigned int firstChar = getc(inputFile);
@@ -286,10 +275,10 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			unsigned long utf16Char = transformWordToUnicode(nextWord);
+			unsigned long utf16Char = transformWordToUniode(nextWord);
 			print32BitCharecterToFile(outputFile, utf16Char);
 		}
-	        firstChar = getc(inputFile);
+	        unsigned int firstChar = getc(inputFile);
 	}
-	return 1;
+
 }

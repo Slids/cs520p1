@@ -39,12 +39,12 @@ int checkBigEndian(FILE *inputFile)
 	unsigned int firstChar = getc(inputFile);
 	if(firstChar == EOF)
 	{
-		printf("Error, no BOM");
+		printf("Error, no BOM\n");
 	}
 	unsigned int secondChar = getc(inputFile);
 	if(secondChar == EOF)
 	{
-		printf("Error, no BOM");
+		printf("Error, no BOM\n");
 	}
 	if((firstChar == 0xFEu) & (secondChar == 0xFFu))
 	{
@@ -54,7 +54,7 @@ int checkBigEndian(FILE *inputFile)
 	{
 		return 0;
 	}
-	printf("Error: No BOM");
+	printf("Error: No BOM\n");
 	exit(-1);
 }
 
@@ -85,31 +85,36 @@ void printBOMToFile(int isBigEndian, FILE *outputFile)
 }
 
 /********************************
-** This will print a long (32 bits) to file
-** Input:
-** 	One long (32 bits)
-** 	File to write to
-** Output:
-** 	void
-** Effect:
-** 	Write int to file
-*/
+ ** This will print a long (32 bits) to file
+ ** Input:
+ ** 	One long (32 bits)
+ ** 	File to write to
+ ** Output:
+ ** 	void
+ ** Effect:
+ ** 	Write int to file
+ */
 void writeLongToFile(int isBigEndian, unsigned long toWrite, FILE *outputFile)
 {
-	if(isBigEndian)
-	{
-		putc( (unsigned int)(toWrite >> 24), outputFile);
-		putc( (unsigned int) ((toWrite << 8) >> 24)  ,outputFile);
-		putc( (unsigned int) ((toWrite << 16) >> 24)  ,outputFile);
-		putc( (unsigned int) ((toWrite << 24) >> 24)  ,outputFile);
-	}
-	else
-	{
-		putc( (unsigned int) ((toWrite << 24) >> 24)  ,outputFile);
-		putc( (unsigned int) ((toWrite << 16) >> 24)  ,outputFile);
-		putc( (unsigned int) ((toWrite << 8) >> 24)  ,outputFile);
-		putc( (unsigned int)(toWrite >> 24), outputFile);
-	}
+  if(isBigEndian)
+    {
+      printf("%lx\n", toWrite);
+      printf("%lx\n", toWrite >> 24);
+      printf("%lx\n", (toWrite & 0xFFFFFFu) >> 16);
+      printf("%x\n", ((unsigned int) ((toWrite & 0xFFFFu) >> 8)));
+      printf("%x\n", ((unsigned int) ((toWrite & 0xFFu))));
+      putc( ((unsigned int)(toWrite >> 24)), outputFile);
+      putc( ((unsigned int) ((toWrite & 0xFFFFFFu) >> 16))  ,outputFile);
+      putc( ((unsigned int) ((toWrite & 0xFFFFu) >> 8))  ,outputFile);
+      putc( ((unsigned int) ((toWrite & 0xFFu))),outputFile);
+    }
+  else
+    {
+      putc( (unsigned int) ((toWrite & 0xFFu))  ,outputFile);
+      putc( (unsigned int) ((toWrite & 0xFFFFu) >> 8)  ,outputFile);
+      putc( (unsigned int) ((toWrite & 0xFFFFFFu) >> 16)  ,outputFile);
+      putc( (unsigned int)(toWrite >> 24), outputFile);
+    }
 }
 
 
@@ -127,9 +132,9 @@ unsigned int fullInteger(unsigned int firstChar, unsigned int secondChar, int is
 	//If its big endian then the first char is most significant, else second
 	if(isBigEndian)
 	{
-		return (firstChar << 4) + secondChar;
+		return (firstChar << 8) + secondChar;
 	}
-	return (secondChar << 4) + firstChar;
+	return (secondChar << 8) + firstChar;
 }
 
 /*****************************************
@@ -164,7 +169,6 @@ void isLongOk(unsigned long possibleLong)
 
 int main(int argc, char *argv[])
 {
-
 	//We first need to check that we have the right number of input elements
 	if(argc != 3)
 	{
@@ -173,7 +177,7 @@ int main(int argc, char *argv[])
 	}
 
 	//Correct number of files, where they different?
-	if(strcmp(argv[1],argv[2]))
+	if(!strcmp(argv[1],argv[2]))
 	{
 		printf("The input and output files cannot be the same");
 		exit(-1);
@@ -198,8 +202,7 @@ int main(int argc, char *argv[])
 
 	//Test the BOM and if correct write the BOM to the output file
 	int isBigEndian = checkBigEndian(inputFile);
-	printBOMToFile(isBigEndian, outputFile);
-
+       	printBOMToFile(isBigEndian, outputFile);
 	//We process the rest in a loop
 	unsigned int firstChar = getc(inputFile);
 	while(firstChar != EOF)
@@ -209,7 +212,7 @@ int main(int argc, char *argv[])
 		errorIfEOLChar(secondChar);
 		unsigned int firstInt = fullInteger(firstChar, secondChar, isBigEndian);
 		//We should check if we are done getting a utf element
-		if( (firstInt < 0xD800) | (firstInt > 0xDFFF))
+		if( (firstInt < 0xD800u) | (firstInt > 0xDFFFu))
 		{
 			unsigned long fullChar = (((unsigned long) secondChar) << 8) + (unsigned long)firstChar;
 			//check if this is a valid charecter
@@ -225,7 +228,7 @@ int main(int argc, char *argv[])
 			unsigned int fourthChar = getc(inputFile);
 			errorIfEOLChar(fourthChar);
 			unsigned int secondInt = fullInteger(thirdChar, fourthChar, isBigEndian);
-			if( (secondInt > 0xDC00u) | (secondInt < 0xDFFu))
+			if( (secondInt < 0xDC00u) | (secondInt > 0xDFFFu))
 			{
 				printf("Error: The input file had an invalid trail surrogate");
 				exit(-1);
@@ -233,10 +236,10 @@ int main(int argc, char *argv[])
 			//Next transform
 			unsigned int tempFirst = firstInt - 0xD800u;
 			unsigned int tempSecond = secondInt - 0xDC00u;
-			unsigned int firstTenBitsOfF = (tempFirst << 6) >> 6;
-			unsigned int firstTenBitsOfS = (tempSecond << 6) >> 6;
-			unsigned long total = ((unsigned long) firstTenBitsOfF)
-						+ (((unsigned long) firstTenBitsOfS) << 10);
+			unsigned int firstTenBitsOfF = tempFirst & 0x3FFu;
+			unsigned int firstTenBitsOfS = tempSecond & 0x3FFu;
+			unsigned long total = (((unsigned long) firstTenBitsOfF) << 10)
+						+ ((unsigned long) firstTenBitsOfS);
 			unsigned long fullChar = total + 0x10000u;
 			//We now have the real value, we need to check validity and write it to the output file
 			isLongOk(fullChar);
